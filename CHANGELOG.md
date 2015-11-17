@@ -1,4 +1,14 @@
-## 0.4.4 (Unreleased)
+## 0.4.7
+* Orders cancelled on Reverb will also cancel magento orders. If magento order can't be cancelled, an error will be reported in the order update sync grid.
+
+## 0.4.6
+* Set up category mappings to create products
+* Ability to select default store for order creation for multi-store setups
+
+## 0.4.5
+* Orders are now created in the default store instead of the admin store. The end result is that order numbering should be consistent with existing orders instead of starting from 0001.
+
+## 0.4.4
 * Magento owner can select whether to sync accepted offers (unpaid orders) or only paid orders
 * Performance improvements (thanks Steve Wolfe)
 
