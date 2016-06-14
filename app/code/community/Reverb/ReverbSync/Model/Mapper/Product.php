@@ -1,0 +1,195 @@
+<?php
+
+/**
+ * Author: Sean Dunagan
+ * Created: 8/17/15
+ * Class Reverb_ReverbSync_Model_Mapper_Product
+ *
+ * This model meant to be referenced as a Singleton via Mage::getSingleton() functionality
+ */
+class Reverb_ReverbSync_Model_Mapper_Product
+{
+    const LISTING_CREATION_ENABLED_CONFIG_PATH = 'ReverbSync/reverbDefault/enable_image_sync';
+
+    protected $_image_sync_is_enabled = null;
+    protected $_condition = null;
+    protected $_has_inventory = null;
+    protected $_listingsUpdateSyncHelper = null;
+    protected $_categorySyncHelper = null;
+    protected $_reverbConditionSourceModel = null;
+
+    //LEGACY CODE: function to Map the Magento and Reverb attributes
+    public function getUpdateListingWrapper(Mage_Catalog_Model_Product $product)
+    {
+        $reverbListingWrapper = Mage::getModel('reverbSync/wrapper_listing');
+        $sku = $product->getSku();
+        // $condition = $this->_getCondition();
+
+        $fieldsArray = array('sku'=> $sku);
+
+        if ($this->_getListingsUpdateSyncHelper()->isTitleUpdateEnabled())
+        {
+            $fieldsArray['title'] = $product->getName();
+        }
+
+        if ($this->_getListingsUpdateSyncHelper()->isPriceUpdateEnabled())
+        {
+            $fieldsArray['price'] = $product->getPrice();
+        }
+
+        if ($this->_getListingsUpdateSyncHelper()->isInventoryQtyUpdateEnabled())
+        {
+            $hasInventory = $this->_getHasInventory();
+            $fieldsArray['has_inventory'] = $hasInventory;
+
+            $stock = Mage::getModel('cataloginventory/stock_item')->loadByProduct($product);
+            $fieldsArray['inventory'] = $stock->getQty();
+        }
+
+
+        $this->addCategoryToFieldsArray($fieldsArray, $product);
+        $this->addProductConditionIfSet($fieldsArray, $product);
+
+        $reverbListingWrapper->setApiCallContentData($fieldsArray);
+        $reverbListingWrapper->setMagentoProduct($product);
+
+        return $reverbListingWrapper;
+    }
+
+    public function getCreateListingWrapper(Mage_Catalog_Model_Product $product)
+    {
+        $reverbListingWrapper = Mage::getModel('reverbSync/wrapper_listing');
+        $stock = Mage::getModel('cataloginventory/stock_item')->loadByProduct($product);
+        $qty = $stock->getQty();
+        $price = $product->getPrice();
+        $name = $product->getName();
+        $description = $product->getDescription();
+        $sku = $product->getSku();
+        $hasInventory = $this->_getHasInventory();
+
+        $fieldsArray = array(
+            'title'=> $name,
+            'sku'=> $sku,
+            'description'=>$description,
+            "has_inventory"=>$hasInventory,
+            "inventory"=>$qty,
+            "price"=>$price
+        );
+
+        $this->addProductImagesToFieldsArray($fieldsArray, $product);
+        $this->addCategoryToFieldsArray($fieldsArray, $product);
+        $this->addProductConditionIfSet($fieldsArray, $product);
+
+        $reverbListingWrapper->setApiCallContentData($fieldsArray);
+        $reverbListingWrapper->setMagentoProduct($product);
+
+        return $reverbListingWrapper;
+    }
+
+    public function addProductConditionIfSet(array &$fieldsArray, $product)
+    {
+        $product_condition = $product->getReverbCondition();
+        if (!empty($product_condition) && $this->_getReverbConditionSourceModel()->isValidConditionValue($product_condition))
+        {
+            $fieldsArray['condition'] = $product_condition;
+        }
+
+        return $fieldsArray;
+    }
+
+    public function addCategoryToFieldsArray(array &$fieldsArray, $product)
+    {
+        $fieldsArray = $this->_getCategorySyncHelper()->addCategoriesToListingFieldsArray($fieldsArray, $product);
+        return $fieldsArray;
+    }
+
+    public function addProductImagesToFieldsArray(&$fieldsArray, Mage_Catalog_Model_Product $product)
+    {
+        if (!$this->_getImageSyncIsEnabled())
+        {
+            return;
+        }
+
+        try
+        {
+            $gallery_image_urls_array = array();
+            $galleryImagesCollection = $product->getMediaGalleryImages();
+            if (is_object($galleryImagesCollection))
+            {
+                $gallery_image_items = $galleryImagesCollection->getItems();
+                foreach($gallery_image_items as $galleryImageObject)
+                {
+                    $full_image_url = $galleryImageObject->getUrl();
+                    $gallery_image_urls_array[] = $full_image_url;
+                }
+                // Remove any potential duplicates
+                $unique_image_urls_array = array_unique($gallery_image_urls_array);
+                $fieldsArray['photos'] = $unique_image_urls_array;
+            }
+        }
+        catch(Exception $e)
+        {
+            // Do nothing here
+        }
+    }
+
+    protected function _getReverbConditionSourceModel()
+    {
+        if (is_null($this->_reverbConditionSourceModel))
+        {
+            $this->_reverbConditionSourceModel = Mage::getSingleton('reverbSync/source_listing_condition');
+        }
+
+        return $this->_reverbConditionSourceModel;
+    }
+
+    protected function _getCategorySyncHelper()
+    {
+        if (is_null($this->_categorySyncHelper))
+        {
+            $this->_categorySyncHelper = Mage::helper('ReverbSync/sync_category');
+        }
+
+        return $this->_categorySyncHelper;
+    }
+
+    protected function _getListingsUpdateSyncHelper()
+    {
+        if (is_null($this->_listingsUpdateSyncHelper))
+        {
+            $this->_listingsUpdateSyncHelper = Mage::helper('ReverbSync/sync_listings_update');
+        }
+
+        return $this->_listingsUpdateSyncHelper;
+    }
+
+    protected function _getImageSyncIsEnabled()
+    {
+        if (is_null($this->_image_sync_is_enabled))
+        {
+            $this->_image_sync_is_enabled = Mage::getStoreConfig(self::LISTING_CREATION_ENABLED_CONFIG_PATH);
+        }
+
+        return $this->_image_sync_is_enabled;
+    }
+
+    protected function _getCondition()
+    {
+        if (is_null($this->_condition))
+        {
+            $this->_condition = Mage::getStoreConfig('ReverbSync/reverbDefault/revCond');
+        }
+
+        return $this->_condition;
+    }
+
+    protected function _getHasInventory()
+    {
+        if (is_null($this->_has_inventory))
+        {
+            $this->_has_inventory = Mage::getStoreConfig('ReverbSync/reverbDefault/revInvent');
+        }
+
+        return $this->_has_inventory;
+    }
+}

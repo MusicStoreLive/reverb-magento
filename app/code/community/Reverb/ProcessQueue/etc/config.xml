@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<config>
+    <modules>
+        <Reverb_ProcessQueue>
+            <version>0.0.6</version>
+        </Reverb_ProcessQueue>
+    </modules>
+
+    <global>
+        <models>
+            <reverb_process_queue>
+                <class>Reverb_ProcessQueue_Model</class>
+                <resourceModel>reverb_process_queue_mysql4</resourceModel>
+            </reverb_process_queue>
+            <reverb_process_queue_mysql4>
+                <class>Reverb_ProcessQueue_Model_Mysql4</class>
+                <entities>
+                    <task>
+                        <table>reverb_process_queue_task</table>
+                    </task>
+                    <task_unique>
+                        <table>reverb_process_queue_task_unique</table>
+                    </task_unique>
+                </entities>
+            </reverb_process_queue_mysql4>
+        </models>
+
+        <helpers>
+            <reverb_process_queue>
+                <class>Reverb_ProcessQueue_Helper</class>
+            </reverb_process_queue>
+        </helpers>
+
+        <blocks>
+            <reverb_process_queue>
+                <class>Reverb_ProcessQueue_Block</class>
+            </reverb_process_queue>
+        </blocks>
+
+        <resources>
+            <reverb_process_queue_setup>
+                <setup>
+                    <module>Reverb_ProcessQueue</module>
+                </setup>
+                <connection>
+                    <use>core_setup</use>
+                </connection>
+            </reverb_process_queue_setup>
+        </resources>
+    </global>
+
+    <admin>
+        <routers>
+            <adminhtml>
+                <args>
+                    <modules>
+                        <reverb_process_queue after="Mage_Adminhtml">Reverb_ProcessQueue_Adminhtml</reverb_process_queue>
+                    </modules>
+                </args>
+            </adminhtml>
+        </routers>
+    </admin>
+
+    <crontab>
+        <jobs>
+            <reverb_process_queue_delete_stale_successful>
+                <schedule>
+                    <cron_expr>36 4 * * *</cron_expr>
+                </schedule>
+                <run>
+                    <model>reverb_process_queue/cron_delete_stale_successful::deleteStaleSuccessfulQueueTasks</model>
+                </run>
+            </reverb_process_queue_delete_stale_successful>
+        </jobs>
+    </crontab>
+</config>
