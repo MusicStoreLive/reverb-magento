@@ -1,3 +1,7 @@
+## 0.9.2
+* Fixes issue where orders that do not have an address fail to get created in Magento
+* New Field Mapping screen: you can now map any magento field to any reverb api field. Get a list of reverb api fields from https://reverb.com/swagger
+
 ## 0.9.1
 * Reach back a day (instead of 11 minutes) for order updates. This compensates for broken or slow crons that may miss some orders. This behavior is often due to other plugins on your system slowing down cron functions.
 
