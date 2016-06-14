@@ -14,6 +14,8 @@ This is a Magento app for integrating with Reverb's API including product sync (
 
 * **Make & Model are guessed from the title**. We can help your developers implement correct make & model parsing if you have structured fields on your side, or these can be corrected in bulk using Reverb's CSV import/export capabilities. In order to set make and model, you have to [modify the code here](https://github.com/reverbdotcom/reverb-magento/blob/master/app/code/community/Reverb/ReverbSync/Model/Mapper/Product.php#L71)
 
+* **Orders are synced only 24 hours into the past** if you just installed the extension and want to sync older orders, please edit the file at app/code/community/Reverb/ReverbSync/Helper/Orders/Retrieval/Creation.php and change MINUTES_IN_PAST_FOR_CREATION_QUERY to the number in minutes you want to go into the past. For 3 days, use 3 * 60 * 24 = 4320
+
 * Only simple products are synced. Configurable products are not synced.
 
 ## Installation: Part 1 - Install the App
@@ -25,13 +27,13 @@ Please follow the instructions below to download and install the app. This assum
 export MAGENTO_PATH=/path/to/magento
 
 # Download the release
-cd /tmp && wget https://github.com/reverbdotcom/magento/archive/0.6.2.tar.gz
+cd /tmp && wget https://github.com/reverbdotcom/magento/archive/0.6.3.tar.gz
 
 # Unzip the release
-tar zxvf 0.6.2.tar.gz
+tar zxvf 0.6.3.tar.gz
 
 # Copy everything from the app folder into your magento app
-rsync -avzp magento-0.6.2/app/* $MAGENTO_PATH/htdocs/app/
+rsync -avzp magento-0.6.3/app/* $MAGENTO_PATH/htdocs/app/
 
 # Clear your cache
 rm -rf $MAGENTO_PATH/htdocs/var/cache
