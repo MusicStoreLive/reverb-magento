@@ -1,6 +1,10 @@
 # Reverb Magento Plugin
 
-This is a Magento app for integrating with Reverb's API including product sync (magento->reverb) and order sync (reverb->magento). It is currently under heavy development. Please read this entire README prior to installing the application.
+This is a Magento app for integrating with Reverb's API including product sync (magento->reverb) and order sync (reverb->magento).
+
+While this plugin can and does work out of the box for many sellers, it is intended as a base for you to customize for your own magento usage. It is only tested on Magento Community 1.7 and 1.9. Enterprise Edition customers are advised to have their own developers evaluate and customize the plugin for usage.
+
+Please read this entire README prior to installing the application.
 
 ## Features
 
@@ -16,9 +20,11 @@ This is a Magento app for integrating with Reverb's API including product sync (
 
 Q: Why aren't things synced in real time, or failing to sync at all?
 
+If you're experiencing problems with your cron, please install [AOE Scheduler](https://www.magentocommerce.com/magento-connect/aoe-scheduler.html) to inspect the functioning of your cron.  
+
 The Reverb sync runs on a cron (magento's scheduler)  that's set to every minute for product syncs and every two minutes for order syncing. This is done so that when you save a product we won't interfere with your normal magento functions, and do all the sync in the background.
 
-However the design of Magento's cron means that other cron-based plugins that take a long time to run may interfere with each other. Reverb generally finishes its work in seconds, but we have seen plugins that can take many minutes to run, or even crash, preventing plugins like Reverb from finishing their work. If you're experiencing problems with your cron, you should look at var/log/cron.log, and possibly install [AOE Scheduler](https://www.magentocommerce.com/magento-connect/aoe-scheduler.html) to inspect the functioning of your cron. 
+However the design of Magento's cron means that other cron-based plugins that take a long time to run may interfere with each other. Reverb generally finishes its work in seconds, but we have seen plugins that can take many minutes to run, or even crash, preventing plugins like Reverb from finishing their work. 
 
 If you're continuing to have cron issues, please install Reverb on a fresh magento instance without any other plugins as a test. If that works, the problem is with one of your other plugins. Please ensure you have no error messages in your cron and php logs prior to contacting Reverb Support.
 
@@ -30,6 +36,11 @@ Q: How can I map make/model and other fields?
 
 If you don't already have make & model fields in your magento installation, you can add them by using the Catalog->Attributes section to add two new fields (for example, "reverb_make" and "reverb_model"). Then go to Catalog->Attributes->Attribute Sets and add those fields into your default attribute set so they appear on every product. Finally, go to (System->Configuration->Reverb Configuration) and map the make and model fields to your newly created fields. You can do the same for other reverb attributes such as finish/year/shipping_profile_name
 
+Q: How can I set all my items to free shipping?
+
+1. Set up a [Reverb Shipping Profile](https://reverb.com/my/selling/shipping_rates) with free shipping ($0), called "Free Shipping".
+2. Add a magento attribute for reverb_shipping_profile from Catalog->Manage Attributes. Set a default value of "Free Shipping" (corresponding to the profile you created in step 1).
+3. Add a mapping from Shipping Profile to your newly created attribute in the System->Configuration->Reverb Settings screen.
 
 ## Installation: Part 1 - Install the App
 
@@ -40,13 +51,13 @@ Please follow the instructions below to download and install the app. This assum
 export MAGENTO_PATH=/path/to/magento
 
 # Download the release
-cd /tmp && wget https://github.com/reverbdotcom/magento/archive/0.9.0.tar.gz
+cd /tmp && wget https://github.com/reverbdotcom/magento/archive/0.9.1.tar.gz
 
 # Unzip the release
-tar zxvf 0.9.0.tar.gz
+tar zxvf 0.9.1.tar.gz
 
 # Copy everything from the app folder into your magento app
-rsync -avzp magento-0.9.0/app/* $MAGENTO_PATH/htdocs/app/
+rsync -avzp magento-0.9.1/app/* $MAGENTO_PATH/htdocs/app/
 
 # Clear your cache
 rm -rf $MAGENTO_PATH/htdocs/var/cache
