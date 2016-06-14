@@ -3,7 +3,7 @@
 <config>
     <modules>
         <Reverb_Reports>
-            <version>1.0.0</version>
+            <version>1.0.1</version>
         </Reverb_Reports>
     </modules>
     <global>
@@ -75,18 +75,22 @@
             <adminhtml>
                 <args>
                     <modules>
-                        <Reverb_Reports before="Mage_Adminhtml">Reverb_Reports_Adminhtml</Reverb_Reports>
+                        <reverb_reports before="Mage_Adminhtml">Reverb_Reports_Adminhtml</reverb_reports>
                     </modules>
                 </args>
             </adminhtml>
-
-            <reverb_reports>
-                <use>admin</use>
-                <args>
-                    <module>Reverb_Reports</module>
-                    <frontName>reverbReports</frontName>
-                </args>
-            </reverb_reports>
         </routers>
     </admin>
+    <crontab>
+        <jobs>
+            <reverb_reports_delete_stale_successful>
+                <schedule>
+                    <cron_expr>37 4 * * *</cron_expr>
+                </schedule>
+                <run>
+                    <model>reverb_reports/cron_delete_stale_successful::deleteStaleSuccessfulReports</model>
+                </run>
+            </reverb_reports_delete_stale_successful>
+        </jobs>
+    </crontab>
 </config>

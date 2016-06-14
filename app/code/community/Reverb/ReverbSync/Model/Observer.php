@@ -2,61 +2,33 @@
 
 class Reverb_ReverbSync_Model_Observer
 {
+    const EXCEPTION_MASS_ATTRIBUTE_PRODUCT_SYNC = 'An exception occurred while queueing up product listing syncs after a mass product attribute update: %s';
+    const EXCEPTION_LISTING_SYNC_ON_ORDER_PLACEMENT = 'An exception was thrown when attempting to queue a background Reverb listing sync task on order placement for product with id %s: %s';
+    const EXCEPTION_LISTING_SYNC_ON_PRODUCT_SAVE = 'An exception occurred while attempting to queue a background Reverb listing sync task on product save for product with id %s: %s';
+
     protected $_logSingleton = null;
 
     //function to create the product in reverb
     public function productSave($observer)
     {
-      try
-      {
-          $product = $observer->getProduct();
-          $product_id = $product->getId();
+        $product = $observer->getProduct();
+        $product_id = $product->getId();
 
-          $syncToReverb = $product->getData('rev_sync');
-          if (is_null($syncToReverb)) {
-              // TODO: This will potentially generate one SQL query per product saved.  Revamp this to queue the check and process in async batches.
-              $syncToReverb = Mage::getResourceModel('catalog/product')->getAttributeRawValue($product_id, 'rev_sync');
-          }
-
-          if (!$syncToReverb) {
-            // Sync To Reverb is disabled for this product
-            return;
-          }
-
-          $productSyncHelper = Mage::helper('ReverbSync/sync_product');
-          $listingWrapper = $productSyncHelper->executeIndividualProductDataSync($product_id);
-        }
-        catch(Reverb_ReverbSync_Model_Exception_Product_Excluded $e)
-        {
-            // If the product has been listed as being excluded from the sync, don't prevent product save
-            $this->_getLogSingleton()->setSessionErrorIfAdminIsLoggedIn($e->getMessage());
-            return;
-        }
-        catch(Reverb_ReverbSync_Model_Exception_Deactivated $e)
-        {
-            // If the module is deactivated, don't prevent product save
-            $this->_getLogSingleton()->setSessionErrorIfAdminIsLoggedIn($e->getMessage());
-            return;
-        }
-        catch(Exception $e)
-        {
-            // Any other Exception is understood to prevent product save
-            throw $e;
-        }
+        $reverbSyncTaskProcessor = Mage::helper('ReverbSync/task_processor');
+        /* @var $reverbSyncTaskProcessor Reverb_ReverbSync_Helper_Task_Processor */
 
         try
         {
-            $product = $observer->getProduct();
-            // If we have reached this point, and the create/update performed above was successful, and the admin
-            //      uploaded any new images, queue image syncs for each of the new images
-            if ($listingWrapper->wasCallSuccessful())
-            {
-                Mage::helper('ReverbSync/sync_image')->queueImageSyncForProductGalleryImages($product, true);
-            }
+            $reverbSyncTaskProcessor->queueListingsSyncByProductIds(array($product_id));
         }
         catch(Exception $e)
         {
-            // Exceptions during image sync should NOT prevent product save
+            $error_message = $reverbSyncTaskProcessor->__(self::EXCEPTION_LISTING_SYNC_ON_PRODUCT_SAVE,
+                                                            $product_id, $e->getMessage());
+
+            $this->_getLogSingleton()->logListingSyncError($error_message);
+            $exceptionToLog = new Exception($error_message);
+            Mage::logException($exceptionToLog);
         }
     }
 
@@ -65,29 +37,30 @@ class Reverb_ReverbSync_Model_Observer
     {
         try
         {
-            $productSyncHelper = Mage::helper('ReverbSync/sync_product');
-            $order = $observer -> getEvent() -> getOrder();
+            $order = $observer->getEvent()->getOrder();
+
+            $reverbSyncTaskProcessor = Mage::helper('ReverbSync/task_processor');
+            /* @var $reverbSyncTaskProcessor Reverb_ReverbSync_Helper_Task_Processor */
 
             foreach ($order->getAllItems() as $item)
             {
                 try
                 {
-                    $product_id = $item->getProductId();
-                    $productSyncHelper->executeIndividualProductDataSync($product_id, true);
-                }
-                catch(Reverb_ReverbSync_Model_Exception_Product_Excluded $e)
-                {
-                    // If the product has been listed as being excluded from the sync, don't log an exception
-                    $this->_getLogSingleton()->setSessionErrorIfAdminIsLoggedIn($e->getMessage());
-                }
-                catch(Reverb_ReverbSync_Model_Exception_Deactivated $e)
-                {
-                    // If the module is deactivated, don't log an exception
-                    $this->_getLogSingleton()->setSessionErrorIfAdminIsLoggedIn($e->getMessage());
+                    if ($item->getProductType() == Mage_Catalog_Model_Product_Type::TYPE_SIMPLE)
+                    {
+                        $product_id = $item->getProductId();
+                        $reverbSyncTaskProcessor->queueListingsSyncByProductIds(array($product_id));
+                    }
                 }
                 catch(Exception $e)
                 {
-                    Mage::logException($e);
+                    $product_id = $item->getProductId();
+                    $error_message = $reverbSyncTaskProcessor->__(self::EXCEPTION_LISTING_SYNC_ON_ORDER_PLACEMENT,
+                                                                    $product_id, $e->getMessage());
+
+                    $this->_getLogSingleton()->logListingSyncError($error_message);
+                    $exceptionToLog = new Exception($error_message);
+                    Mage::logException($exceptionToLog);
                 }
             }
         }
@@ -97,6 +70,41 @@ class Reverb_ReverbSync_Model_Observer
         }
     }
 
+    public function triggerProductSyncOffMassProductUpdate($observer)
+    {
+        try
+        {
+            $controllerAction = $observer->getData('controller_action');
+            /* @var $controllerAction Mage_Adminhtml_Catalog_Product_Action_AttributeController */
+            $inventory_data      = $controllerAction->getRequest()->getParam('inventory', array());
+            $attributes_data     = $controllerAction->getRequest()->getParam('attributes', array());
+
+            $listingsUpdateHelper = Mage::helper('ReverbSync/sync_listings_update');
+            /* @var $listingsUpdateHelper Reverb_ReverbSync_Helper_Sync_Listings_Update */
+            if ($listingsUpdateHelper->shouldMassProductUpdateTriggerProductListingsSync($attributes_data, $inventory_data))
+            {
+                $catalogProductEditHelper = Mage::helper('adminhtml/catalog_product_edit_action_attribute');
+                /* @var $catalogProductEditHelper Mage_Adminhtml_Helper_Catalog_Product_Edit_Action_Attribute */
+                $product_ids_to_sync = $catalogProductEditHelper->getProductIds();
+                $productSyncHelper = Mage::helper('ReverbSync/sync_product');
+                /* @var $productSyncHelper Reverb_ReverbSync_Helper_Sync_Product */
+                $number_of_syncs_queued_up = $productSyncHelper->queueUpProductDataSync($product_ids_to_sync);
+            }
+        }
+        catch(Reverb_ReverbSync_Model_Exception_Deactivated $deactivatedException)
+        {
+            // Do nothing in this event
+        }
+        catch(Exception $e)
+        {
+            $error_message = Mage::helper('ReverbSync')->__(self::EXCEPTION_MASS_ATTRIBUTE_PRODUCT_SYNC, $e->getMessage());
+            $this->_getLogSingleton()->logListingSyncError($error_message);
+        }
+    }
+
+    /**
+     * @return Reverb_ReverbSync_Model_Log
+     */
     protected function _getLogSingleton()
     {
         if (is_null($this->_logSingleton))

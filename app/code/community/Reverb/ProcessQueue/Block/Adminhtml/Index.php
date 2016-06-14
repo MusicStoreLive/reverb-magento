@@ -42,7 +42,10 @@ abstract class Reverb_ProcessQueue_Block_Adminhtml_Index
             'label' => $this->_expediteTasksButtonLabel()
         );
 
-        $action_buttons_array['expedite_tasks'] = $expedite_tasks_button;
+        $action_buttons_array = array();
+
+        // Note: Expedite Tasks Button is not currently implemented, so this line is commented out:
+        //$action_buttons_array['expedite_tasks'] = $expedite_tasks_button;
 
         foreach ($action_buttons_array as $button_id => $button_data)
         {

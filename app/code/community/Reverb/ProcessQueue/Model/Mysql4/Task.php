@@ -55,7 +55,10 @@ class Reverb_ProcessQueue_Model_Mysql4_Task extends Mage_Core_Model_Mysql4_Abstr
         $update_bind_array = array('status' => Reverb_ProcessQueue_Model_Task::STATUS_PROCESSING,
                                     'status_message' => null,
                                     'last_executed_at' => $current_gmt_datetime);
-        $where_conditions_array = array('task_id=?' => $task_id, 'status=?' => $current_status);
+        $where_conditions_array = array('task_id=?' => $task_id,
+                                        'status=?' => $current_status,
+                                        // As an additional safety measure, don't update any rows already in processing state
+                                        'status<>?' => Reverb_ProcessQueue_Model_Task::STATUS_PROCESSING);
 
         $rows_updated = $this->_getWriteAdapter()->update($this->getMainTable(), $update_bind_array, $where_conditions_array);
         return $rows_updated;
@@ -85,6 +88,49 @@ class Reverb_ProcessQueue_Model_Mysql4_Task extends Mage_Core_Model_Mysql4_Abstr
 
         // TODO Log error in this case
         return 0;
+    }
+
+    /**
+     * @param null|string|array $task_code
+     * @param null|string $last_executed_date - Expected to be a date in 'Y-m-d H:i:s' format
+     * @return int - Number of rows deleted
+     */
+    public function deleteSuccessfulTasks($task_code = null, $last_executed_date = null)
+    {
+        $where_condition_array = array('status=?' => Reverb_ProcessQueue_Model_Task::STATUS_COMPLETE);
+        if (!empty($task_code))
+        {
+            if (!is_array($task_code))
+            {
+                $task_code = array($task_code);
+            }
+            $where_condition_array['code in (?)'] = $task_code;
+        }
+        if (!empty($last_executed_date))
+        {
+            $where_condition_array['last_executed_at < ?'] = $last_executed_date;
+        }
+        $rows_deleted = $this->_getWriteAdapter()->delete($this->getMainTable(), $where_condition_array);
+        return $rows_deleted;
+    }
+
+    public function deleteAllTasks($task_code = null)
+    {
+        if(!empty($task_code))
+        {
+            if (!is_array($task_code))
+            {
+                $task_code = array($task_code);
+            }
+            $where_condition_array = array('code in (?)' => $task_code);
+            $rows_deleted = $this->_getWriteAdapter()->delete($this->getMainTable(), $where_condition_array);
+        }
+        else
+        {
+            $rows_deleted = $this->_getWriteAdapter()->delete($this->getMainTable());
+        }
+
+        return $rows_deleted;
     }
 
     public function setTaskAsCompleted(Reverb_ProcessQueue_Model_Task_Interface $taskObject, $success_message = null)

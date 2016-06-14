@@ -17,6 +17,8 @@ abstract class Reverb_Base_Controller_Adminhtml_Abstract
 
     abstract public function getIndexBlockName();
 
+    abstract public function getIndexActionsController();
+
     // The following is accessible via accessor method getModuleHelper()
     protected $_moduleHelper = null;
 
@@ -98,17 +100,23 @@ abstract class Reverb_Base_Controller_Adminhtml_Abstract
 
     protected function _isAllowed()
     {
-        if(!Mage::getSingleton('admin/session')->isAllowed($this->getAclPath()))
-        {
-            return false;
-        }
+        return Mage::getSingleton('admin/session')->isAllowed($this->getAclPath());
+    }
 
-        return true;
+    public function getUriPathForIndexAction($action)
+    {
+        $uri_path = sprintf('%s/%s/%s', $this->getModuleRouterFrontname(), $this->getIndexActionsController(), $action);
+        return $uri_path;
     }
 
     public function getAclPath()
     {
         return $this->getControllerActiveMenuPath();
+    }
+
+    public function getModuleRouterFrontname()
+    {
+        return 'adminhtml';
     }
 
     public function getModuleHelper()

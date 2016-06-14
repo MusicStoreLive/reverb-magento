@@ -9,20 +9,63 @@ class Reverb_ReverbSync_Helper_Orders_Creation_Address extends Reverb_ReverbSync
     const ERROR_NO_ADDRESS = 'An attempt was made to create an order in magento for a Reverb order which did not have an address listed';
     const ERROR_VALIDATING_QUOTE_ADDRESS = "While validating a quote address for a Reverb Order Sync, the address failed validation. The address's serialized data was: %s. The error message was: %s";
 
+    const LOCAL_PICKUP_VALUE = 'Local Pickup';
+    const NO_ADDRESS_VALUE = 'No Address';
+    // If a user has Local Pickup or No Address, we don't want a country to show up in the address.
+    //      As such, use a code which will not lead to a country showing up in the admin panel
+    const UNMATCHED_COUNTRY_CODE = 'XX';
+
     public function addOrderAddressAsShippingAndBillingToQuote(stdClass $reverbOrderObject,
                                                                    Mage_Sales_Model_Quote $quoteToBuild)
     {
+        if ($reverbOrderObject->local_pickup)
+        {
+            $this->_addLocalPickupAddressToOrderObject($reverbOrderObject);
+        }
+
         $shippingAddressObject = $reverbOrderObject->shipping_address;
         if (!is_object($shippingAddressObject))
         {
-            $error_message = $this->__(self::ERROR_NO_ADDRESS);
-            throw new Exception($error_message);
+            // In this event, we still want to create the Magento order. We will populate the address fields with a
+            //      fake placeholder value
+            $this->_addNoAddressToOrderObject($reverbOrderObject);
+            $shippingAddressObject = $reverbOrderObject->shipping_address;
         }
 
         $customerAddress = $this->_getCustomerAddressForOrder($shippingAddressObject);
 
         $this->_addBillingAddressToQuote($customerAddress, $quoteToBuild);
         $this->_getShippingHelper()->addShippingAddressToQuote($reverbOrderObject, $customerAddress, $quoteToBuild);
+    }
+
+    protected function _addLocalPickupAddressToOrderObject(stdClass $reverbOrderObject)
+    {
+        $shippingAddress = new stdClass();
+        $shippingAddress->name = $reverbOrderObject->buyer_name;
+        $shippingAddress->street_address = self::LOCAL_PICKUP_VALUE;
+        $shippingAddress->extended_address = self::LOCAL_PICKUP_VALUE;
+        $shippingAddress->locality = self::LOCAL_PICKUP_VALUE;
+        $shippingAddress->region = self::LOCAL_PICKUP_VALUE;
+        $shippingAddress->postal_code = self::LOCAL_PICKUP_VALUE;
+        $shippingAddress->country_code = self::UNMATCHED_COUNTRY_CODE;
+        $shippingAddress->phone = self::LOCAL_PICKUP_VALUE;
+
+        $reverbOrderObject->shipping_address = $shippingAddress;
+    }
+
+    protected function _addNoAddressToOrderObject(stdClass $reverbOrderObject)
+    {
+        $shippingAddress = new stdClass();
+        $shippingAddress->name = $reverbOrderObject->buyer_name;
+        $shippingAddress->street_address = self::NO_ADDRESS_VALUE;
+        $shippingAddress->extended_address = self::NO_ADDRESS_VALUE;
+        $shippingAddress->locality = self::NO_ADDRESS_VALUE;
+        $shippingAddress->region = self::NO_ADDRESS_VALUE;
+        $shippingAddress->postal_code = self::NO_ADDRESS_VALUE;
+        $shippingAddress->country_code = self::UNMATCHED_COUNTRY_CODE;
+        $shippingAddress->phone = self::NO_ADDRESS_VALUE;
+
+        $reverbOrderObject->shipping_address = $shippingAddress;
     }
 
     protected function _addBillingAddressToQuote($customerAddress, $quoteToBuild)
@@ -68,6 +111,7 @@ class Reverb_ReverbSync_Helper_Orders_Creation_Address extends Reverb_ReverbSync
 
         $street_address = $shippingAddressObject->street_address;
         $extended_address = $shippingAddressObject->extended_address;
+
         $street_array = array($street_address, $extended_address);
 
         $region = $shippingAddressObject->region;
@@ -88,9 +132,30 @@ class Reverb_ReverbSync_Helper_Orders_Creation_Address extends Reverb_ReverbSync
             'telephone' => $shippingAddressObject->phone,
         );
 
+        $address_data_array = $this->_trimAddressFields($address_data_array);
+
         $customerAddress = Mage::getModel('customer/address');
         $customerAddress->addData($address_data_array);
 
         return $customerAddress;
+    }
+
+    protected function _trimAddressFields(array $address_data_array)
+    {
+        foreach ($address_data_array as $field => $value)
+        {
+            if (is_array($value))
+            {
+                $value = $this->_trimAddressFields($value);
+            }
+            elseif(!is_object($value))
+            {
+                $value = trim($value);
+            }
+
+            $address_data_array[$field] = $value;
+        }
+
+        return $address_data_array;
     }
 } 

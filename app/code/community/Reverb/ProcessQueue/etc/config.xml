@@ -2,7 +2,7 @@
 <config>
     <modules>
         <Reverb_ProcessQueue>
-            <version>0.0.5</version>
+            <version>0.0.6</version>
         </Reverb_ProcessQueue>
     </modules>
 
@@ -51,13 +51,26 @@
 
     <admin>
         <routers>
-            <reverb_process_queue>
-                <use>admin</use>
+            <adminhtml>
                 <args>
-                    <module>Reverb_ProcessQueue</module>
-                    <frontName>reverb_process_queue</frontName>
+                    <modules>
+                        <reverb_process_queue after="Mage_Adminhtml">Reverb_ProcessQueue_Adminhtml</reverb_process_queue>
+                    </modules>
                 </args>
-            </reverb_process_queue>
+            </adminhtml>
         </routers>
     </admin>
+
+    <crontab>
+        <jobs>
+            <reverb_process_queue_delete_stale_successful>
+                <schedule>
+                    <cron_expr>36 4 * * *</cron_expr>
+                </schedule>
+                <run>
+                    <model>reverb_process_queue/cron_delete_stale_successful::deleteStaleSuccessfulQueueTasks</model>
+                </run>
+            </reverb_process_queue_delete_stale_successful>
+        </jobs>
+    </crontab>
 </config>

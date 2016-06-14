@@ -1,6 +1,10 @@
 # Reverb Magento Plugin
 
-This is a Magento app for integrating with Reverb's API including product sync (magento->reverb) and order sync (reverb->magento). It is currently under heavy development. Please read this entire README prior to installing the application.
+This is a Magento app for integrating with Reverb's API including product sync (magento->reverb) and order sync (reverb->magento).
+
+While this plugin can and does work out of the box for many sellers, it is intended as a base for you to customize for your own magento usage. It is only tested on Magento Community 1.7 and 1.9. Enterprise Edition customers are advised to have their own developers evaluate and customize the plugin for usage.
+
+Please read this entire README prior to installing the application.
 
 ## Features
 
@@ -8,9 +12,35 @@ This is a Magento app for integrating with Reverb's API including product sync (
 * Control whether price/title/inventory syncs individualy.
 * Sync updates for inventory from Magento to Reverb. 
 * Sync orders from Reverb to Magento
-* Sync shipping number from Magento to Reverb
+* Sync shipping tracking information from Magento to Reverb
+* Configurable products - children are synced as individual listings on Reverb
+* Make/model/price/finish/year/shipping_profile_name can be mapped to attributes in your magento installation
 
-Only simple products are synced. Configurable products are not synced.
+## FAQ
+
+#### Q: Why aren't things synced in real time, or failing to sync at all?
+
+If you're experiencing problems with your cron, please install [AOE Scheduler](https://www.magentocommerce.com/magento-connect/aoe-scheduler.html) to inspect the functioning of your cron.  
+
+The Reverb sync runs on a cron (magento's scheduler)  that's set to every minute for product syncs and every two minutes for order syncing. This is done so that when you save a product we won't interfere with your normal magento functions, and do all the sync in the background.
+
+However the design of Magento's cron means that other cron-based plugins that take a long time to run may interfere with each other. Reverb generally finishes its work in seconds, but we have seen plugins that can take many minutes to run, or even crash, preventing plugins like Reverb from finishing their work. 
+
+If you're continuing to have cron issues, please install Reverb on a fresh magento instance without any other plugins as a test. If that works, the problem is with one of your other plugins. Please ensure you have no error messages in your cron and php logs prior to contacting Reverb Support.
+
+#### Q: Why are my Reverb Make & Model incorrect or showing as "Unknown"
+
+**Make & Model are guessed from the title unless you map those fields **. Use the configuration screen (System->Configuration->Reverb Configuration) to map make/model fields to attribute fields in your Magento installation. If you don't have structured make/model fields, we will attempt to guess them from the title, but this is not reliable.
+
+#### Q: How can I map make/model and other fields?
+
+If you don't already have make & model fields in your magento installation, you can add them by using the Catalog->Attributes section to add two new fields (for example, "reverb_make" and "reverb_model"). Then go to Catalog->Attributes->Attribute Sets and add those fields into your default attribute set so they appear on every product. Finally, go to (System->Configuration->Reverb Configuration) and map the make and model fields to your newly created fields. You can do the same for other reverb attributes such as finish/year/shipping_profile_name
+
+#### Q: How can I set all my items to free shipping?
+
+1. Set up a [Reverb Shipping Profile](https://reverb.com/my/selling/shipping_rates) with free shipping ($0), called "Free Shipping".
+2. Add a magento attribute for reverb_shipping_profile from Catalog->Manage Attributes. Set a default value of "Free Shipping" (corresponding to the profile you created in step 1).
+3. Add a mapping from Shipping Profile to your newly created attribute in the System->Configuration->Reverb Settings screen.
 
 ## Installation: Part 1 - Install the App
 
@@ -21,13 +51,13 @@ Please follow the instructions below to download and install the app. This assum
 export MAGENTO_PATH=/path/to/magento
 
 # Download the release
-cd /tmp && wget https://github.com/reverbdotcom/magento/archive/0.4.7.tar.gz
+cd /tmp && wget https://github.com/reverbdotcom/magento/archive/0.9.3.tar.gz
 
 # Unzip the release
-tar zxvf 0.4.7.tar.gz
+tar zxvf 0.9.3.tar.gz
 
 # Copy everything from the app folder into your magento app
-rsync -avzp magento-0.4.7/app/* $MAGENTO_PATH/htdocs/app/
+rsync -avzp magento-0.9.3/app/* $MAGENTO_PATH/htdocs/app/
 
 # Clear your cache
 rm -rf $MAGENTO_PATH/htdocs/var/cache
@@ -53,13 +83,20 @@ If your crontab does not contain either of these lines, please use `crontab -e` 
 * Select Yes for Enable Reverb Module to turn on the sync
 * If you also want to create drafts for skus that don't exist on Reverb, select "Enable Listing Creation" in the Reverb Default section.
 
-## Usage
+## Usage - Listing Sync
 
-The sync to Reverb can be triggered in two ways:
+The listing sync to Reverb can be triggered in two ways:
 
 1. When you Save any Product in Magento, it will automaticaly sync to Reverb. Make sure you set "Sync to Reverb" to "Yes" on the bottom of the product page, and enable the Reverb Module in your global settings (see Part 3 of installation).
 
 2. Bulk Sync. Under the Reverb menu item, select listing or order sync and use the Bulk Sync button in the upper right. The page will update with progress over time. Please note that very large catalogs (thousands of skus) may take an hour or more to fully sync. Please refresh the page to see the sync report.
+
+## Usage - Order Sync
+
+Orders are automatically synced on a one minute cron timer. If you aren't seeing orders, please visit the Order Creation tab under Reverb and click the button to manually sync them. Please report any issues with periodic syncing to the [Reverb Magento Support Group](https://groups.google.com/forum/#!forum/reverb-magento)
+
+* **Orders are synced only 24 hours into the past** if you just installed the extension and want to sync older orders, please edit the file at app/code/community/Reverb/ReverbSync/Helper/Orders/Retrieval/Creation.php and change MINUTES_IN_PAST_FOR_CREATION_QUERY to the number in minutes you want to go into the past. For 3 days, use 3 * 60 * 24 = 4320
+* You can select whether to sync all orders (including unpaid accepted offers) or only orders awaiting shipment, via the settings screen
 
 ## Notes on Bulk Sync
 
@@ -76,6 +113,10 @@ The bulk sync uses multiple threads (runs in parallel). It takes some time to sp
 ### Blank pages or plugin doesn't load
 
 Please make sure you've [cleared your magento cache](https://www.properhost.com/support/kb/23/How-To-Clear-The-Magento-Cache).
+
+## Support and Announcements
+
+Please join the [Reverb Magento Support Group](https://groups.google.com/forum/#!forum/reverb-magento)
 
 ## Contributing
 

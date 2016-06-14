@@ -6,6 +6,8 @@
 
 abstract class Reverb_ReverbSync_Adminhtml_BaseController extends Mage_Adminhtml_Controller_Action
 {
+    protected $_adminHelper = null;
+
     abstract public function getBlockToShow();
 
     abstract public function getControllerActiveMenuPath();
@@ -36,6 +38,11 @@ abstract class Reverb_ReverbSync_Adminhtml_BaseController extends Mage_Adminhtml
     public function getModuleBlockGroupname()
     {
         return "ReverbSync";
+    }
+
+    protected function _isAllowed()
+    {
+        return Mage::getSingleton('admin/session')->isAllowed($this->getControllerActiveMenuPath());
     }
 
     protected function _addBreadcrumb($label = null, $title = null, $link=null)
@@ -73,6 +80,9 @@ abstract class Reverb_ReverbSync_Adminhtml_BaseController extends Mage_Adminhtml
         return $this;
     }
 
+    /**
+     * @return Reverb_ReverbSync_Helper_Admin
+     */
     protected function _getAdminHelper()
     {
         if (is_null($this->_adminHelper))

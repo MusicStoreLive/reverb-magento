@@ -1,8 +1,16 @@
 <?xml version="1.0"?>
+<!--
+/**
+ *
+ * @category    Reverb
+ * @package     Reverb_ReverbSync
+ * @author      Sean Dunagan
+ */
+-->
 <config>
   <modules>
     <Reverb_ReverbSync>
-      <version>0.1.9</version>
+      <version>0.1.16</version>
     </Reverb_ReverbSync>
   </modules>
   <global>
@@ -17,6 +25,13 @@
               <reverb_category>
                   <table>reverb_categories</table>
               </reverb_category>
+              <magento_reverb_category_xref>
+                  <table>reverb_magento_category_xref</table>
+              </magento_reverb_category_xref>
+              <magento_reverb_field_mapping>
+                  <table>reverb_magento_field_mapping</table>
+              </magento_reverb_field_mapping>
+              <!-- This table has been deprecated and is no longer in use -->
               <magento_reverb_category_mapping>
                   <table>reverb_magento_categories</table>
               </magento_reverb_category_mapping>
@@ -82,6 +97,16 @@
                 </execute_magento_order_cancel>
             </observers>
         </reverb_order_status_update_cancelled>
+
+        <reverb_order_status_update_paid>
+            <observers>
+                <execute_magento_order_paid>
+                    <type>singleton</type>
+                    <class>Reverb_ReverbSync_Model_Observer_Orders_Update</class>
+                    <method>executeMagentoOrderPaid</method>
+                </execute_magento_order_paid>
+            </observers>
+        </reverb_order_status_update_paid>
     </events>
     <blocks>
       <ReverbSync>
@@ -181,6 +206,16 @@
           </update_layout_for_reverb_order>
         </observers>
       </controller_action_layout_render_before_adminhtml_sales_order_invoice_view>
+
+        <controller_action_postdispatch_adminhtml_catalog_product_action_attribute_save>
+            <observers>
+                <queue_bulk_product_sync>
+                    <type>singleton</type>
+                    <class>reverbSync/observer</class>
+                    <method>triggerProductSyncOffMassProductUpdate</method>
+                </queue_bulk_product_sync>
+            </observers>
+        </controller_action_postdispatch_adminhtml_catalog_product_action_attribute_save>
     </events>
   </adminhtml>
 
@@ -193,15 +228,6 @@
           </modules>
         </args>
       </adminhtml>
-
-      <reverb_sync>
-        <use>admin</use>
-        <args>
-          <module>Reverb_ReverbSync</module>
-          <frontName>reverbSync</frontName>
-        </args>
-      </reverb_sync>
-
     </routers>
   </admin>
 
@@ -209,7 +235,7 @@
     <jobs>
       <reverb_process_queued_listing_sync_tasks>
         <schedule>
-          <cron_expr>*/2 * * * *</cron_expr>
+          <cron_expr>* * * * *</cron_expr>
         </schedule>
         <run>
           <model>reverbSync/cron_listings_sync::attemptCronExecution</model>
@@ -218,7 +244,7 @@
 
       <reverb_process_queued_listing_image_sync_tasks>
         <schedule>
-          <cron_expr>*/2 * * * *</cron_expr>
+          <cron_expr>* * * * *</cron_expr>
         </schedule>
         <run>
           <model>reverbSync/cron_listings_images_sync::attemptCronExecution</model>
@@ -275,6 +301,7 @@
         <enable_image_sync>0</enable_image_sync>
         <revCond>Brand New</revCond>
         <revInvent>1</revInvent>
+        <offers_enabled>1</offers_enabled>
       </reverbDefault>
       <extension>
         <revUrl>https://sandbox.reverb.com</revUrl>
@@ -282,8 +309,12 @@
       <listings_update_switches>
         <title>0</title>
         <price>0</price>
+        <description>0</description>
         <inventory_qty>1</inventory_qty>
       </listings_update_switches>
+      <listings_field_attributes>
+        <description>description</description>
+      </listings_field_attributes>
       <orders_sync>
         <enabled>0</enabled>
         <super_mode_enabled>0</super_mode_enabled>

@@ -1,3 +1,77 @@
+## 0.9.3
+* Uses updated B-Stock instead of Like New condition.
+* Order Creation page buttons redirect back to Order Creation page
+
+## 0.9.2
+* Fixes issue where orders that do not have an address fail to get created in Magento
+* New Field Mapping screen: you can now map any magento field to any reverb api field. Get a list of reverb api fields from https://reverb.com/swagger
+
+## 0.9.1
+* Reach back a day (instead of 11 minutes) for order updates. This compensates for broken or slow crons that may miss some orders. This behavior is often due to other plugins on your system slowing down cron functions.
+
+## 0.9.0
+* Base image is now sent as the primary image to Reverb if there is one set
+* New syncable fields: shipping_profile_name, finish, year.  Please create your own attributes in magento for these and map them in the settings screen if you want them.
+* Description syncs on update - control whether it syncs in the settings screen.
+* Changes internal category mapping to make category mapping more robust and less likely to break in the future. When installing this release a migration will be run. No impact to existing category mappings.
+* Listing sync cron runs every minute instead of every 2 minutes
+
+## 0.8.4
+* Fix occasional 404 Not Found errors while clearing sync tasks
+* Fix enterprise edition incompatibility due to version check
+
+## 0.8.3
+* Accept offers can be set to yes/no on a per product basis
+* Map description field to any field on your products
+* Order pagination fix - if you have more than 24 orders per syncing period, we will now find them
+* Mass updates now trigger reverb syncs
+* Reverb sync fully backgrounded. Saving a product does not block while contacting Reverb. Note that this will introduce a delay of 1 minute or more between saving a product and the change going to Reverb depending on your cron schedule.
+
+## 0.8.2
+* Configurable product support (from 0.8.1)
+* Make and model are synced on both create and update
+* Make and model mapping can now successfully map to dropdowns and send the value of the dropdown
+* If condition is not set, use the default condition
+* Condition is chosen from a dropdown
+* All nav correctly highlights the Reverb tab instead of Catalog tab
+
+## 0.8.1
+* Prior to this release, you could only use simple products with the Reverb extension. Now, configurable products are correctly supported. The associated simple product children of your configurable product will be pushed to Reverb as individual listings.
+
+## 0.8.0
+* Map make/model/price fields in the configuration screen to any attributes from Magento
+
+## 0.7.0
+* Fix issues with Magento Enterprise Edition related to curl library incompatibility
+
+## 0.6.3
+* Fixes incorrect ordering of category mappings resulting in categories not syncing to Reverb. Note that this release will wipe out your category mappings, and you'll have to reassign the mappings. Since they weren't working correctly to begin with, this should not be an issue.
+
+## 0.6.2
+* Magento version displayed in referrer string and settings screen so Reverb Support can identify customer version
+
+## 0.6.1
+* Buttons to delete successful sync tasks
+
+## 0.6.0
+* Categories and subcategories are now correctly assigned from the mapping screen
+* Syncs categories on updates
+
+## 0.5.2
+* Fix order retrieval to run on a cron timer - it was only working when the sync button was pressed
+
+## 0.5.0
+* Don't sync categories on update to prevent mismapped category errors from impacting other updates
+
+## 0.4.9
+* Local pickup orders are correctly handled with a fake "Local Pickup" address (Magento requires addresses on orders)
+* Condition can be set on a per-item basis with a dropdown
+* Addresses with whitespace no longer cause issues
+* Admin routing updated to comply with Magento Security Patch SUPEE-6788 / APPSEC-1034
+
+## 0.4.8
+* Unpaid order are not invoiced in Magento until they are paid
+
 ## 0.4.7
 * Orders cancelled on Reverb will also cancel magento orders. If magento order can't be cancelled, an error will be reported in the order update sync grid.
 
