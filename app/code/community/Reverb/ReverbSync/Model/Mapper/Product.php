@@ -11,7 +11,10 @@ class Reverb_ReverbSync_Model_Mapper_Product
 {
     const LISTING_CREATION_ENABLED_CONFIG_PATH = 'ReverbSync/reverbDefault/enable_image_sync';
     const LISTING_DEFAULT_CONDITION_CONFIG_PATH = 'ReverbSync/reverbDefault/revCond';
+    const LISTING_DEFAULT_OFFER_ENABLED_CONFIG_PATH = 'ReverbSync/reverbDefault/offers_enabled';
     const REVERB_LISTING_FIELD_PRODUCT_ATTRIBUTE_CONFIG = 'ReverbSync/listings_field_attributes/%s';
+
+    const REVERB_CONDITION_PRODUCT_ATTRIBUTE = 'reverb_condition';
 
     protected $_image_sync_is_enabled = null;
     protected $_condition = null;
@@ -52,6 +55,7 @@ class Reverb_ReverbSync_Model_Mapper_Product
         }
 
         $this->_addMappedAttributes($fieldsArray, $product);
+        $this->_addProductAcceptOffers($fieldsArray, $product);
         $this->addCategoryToFieldsArray($fieldsArray, $product);
         $this->addProductConditionIfSet($fieldsArray, $product);
 
@@ -68,7 +72,7 @@ class Reverb_ReverbSync_Model_Mapper_Product
         $qty = $stock->getQty();
         $price = $this->getProductPrice($product);
         $name = $product->getName();
-        $description = $product->getDescription();
+        $description = $this->getProductDescription($product);
         $sku = $product->getSku();
         $hasInventory = $this->_getHasInventory();
 
@@ -82,6 +86,7 @@ class Reverb_ReverbSync_Model_Mapper_Product
         );
 
         $this->_addMappedAttributes($fieldsArray, $product);
+        $this->_addProductAcceptOffers($fieldsArray, $product);
         $this->addProductImagesToFieldsArray($fieldsArray, $product);
         $this->addCategoryToFieldsArray($fieldsArray, $product);
         $this->addProductConditionIfSet($fieldsArray, $product);
@@ -94,7 +99,7 @@ class Reverb_ReverbSync_Model_Mapper_Product
 
     public function getProductPrice($product)
     {
-        $attribute_for_reverb_price = $this->getMagentoProductAttributeForReverbField('price');
+        $attribute_for_reverb_price = $this->getMagentoPriceAttributeToMapToReverbPrice();
         if (!empty($attribute_for_reverb_price))
         {
             $reverb_price = $product->getData($attribute_for_reverb_price);
@@ -104,6 +109,14 @@ class Reverb_ReverbSync_Model_Mapper_Product
             }
         }
         return $product->getPrice();
+    }
+
+    public function getProductDescription($product)
+    {
+        $_reverb_allowed_tags = '<ul>,<ol>,<li>,<strong>,<b>,<em>,<i>,<u>,<div>,<p>,<br>';
+        $_descr = Mage::helper('core')->stripTags($this->getProductValueForListing($product, 'description'), $_reverb_allowed_tags);
+        
+        return $_descr;
     }
 
     public function getProductValueForListing($product, $reverb_field)
@@ -137,7 +150,7 @@ class Reverb_ReverbSync_Model_Mapper_Product
 
     public function addProductConditionIfSet(array &$fieldsArray, $product)
     {
-        $_product_condition = $product->getAttributeText('reverb_condition');
+        $_product_condition = $product->getAttributeText(self::REVERB_CONDITION_PRODUCT_ATTRIBUTE);
 
         // Get default value if condition is not set
         if (empty($_product_condition))
@@ -183,6 +196,14 @@ class Reverb_ReverbSync_Model_Mapper_Product
         {
             // Do nothing here
         }
+    }
+
+    /**
+     * @return string
+     */
+    public function getReverbConditionAttribute()
+    {
+        return self::REVERB_CONDITION_PRODUCT_ATTRIBUTE;
     }
 
     protected function _getReverbConditionSourceModel()
@@ -245,6 +266,28 @@ class Reverb_ReverbSync_Model_Mapper_Product
         return $this->_has_inventory;
     }
 
+    public function getMagentoAttributesMappedToReverbAttributes()
+    {
+        $magento_attribute_codes = array();
+
+        foreach($this->_reverb_fields_mapped_to_magento_attributes as $reverb_field)
+        {
+            $attribute_code = $this->getMagentoProductAttributeForReverbField($reverb_field);
+            if (!empty($attribute_code))
+            {
+                $magento_attribute_codes[] = $attribute_code;
+            }
+        }
+
+        return $magento_attribute_codes;
+    }
+
+    public function getMagentoPriceAttributeToMapToReverbPrice()
+    {
+        $price_attribute_code = $this->getMagentoProductAttributeForReverbField('price');
+        return (!empty($price_attribute_code)) ? $price_attribute_code : 'price';
+    }
+
     protected function _addMappedAttributes(&$fieldsArray, $product)
     {
         foreach($this->_reverb_fields_mapped_to_magento_attributes as $reverb_field)
@@ -255,5 +298,26 @@ class Reverb_ReverbSync_Model_Mapper_Product
                 $fieldsArray[$reverb_field] = $product_value;
             }
         }
+    }
+
+    protected function _addProductAcceptOffers(&$fieldsArray, $product)
+    {
+        $_offers_enabled = $product->getData('reverb_offers_enabled');
+        $_reverb_offers_enabled = false;
+
+        if (!empty($_offers_enabled)){
+            // Accept offers set on product
+            if (1 == $_offers_enabled) {
+                $_reverb_offers_enabled = true;
+            }
+
+            if (2 == $_offers_enabled) {
+                $_reverb_offers_enabled = false;
+            }
+        } else {
+            $_reverb_offers_enabled = Mage::getStoreConfig(self::LISTING_DEFAULT_OFFER_ENABLED_CONFIG_PATH);
+        }
+
+        return $fieldsArray['offers_enabled'] = $_reverb_offers_enabled;
     }
 }
